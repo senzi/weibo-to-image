@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bd": "vue-tsc -b && vite build && cp -r dist/* /opt/1panel/apps/openresty/openresty/www/sites/w2w/index"
   },
   "dependencies": {
     "@chinese-fonts/lxgwwenkai": "^2.0.1",
