@@ -1,9 +1,9 @@
 <template>
   <div class="container">
-    <header>
-      <h1>微博转微博</h1>
-      <p>生成微博卡片图片工具</p>
-    </header>
+    <div class="app-header">
+      <h1>微博转长图 (Weibo to Weibo.png)</h1>
+      <p class="subtitle">将微博内容转换为精美的分享图片</p>
+    </div>
 
     <main>
       <div class="layout">
@@ -12,98 +12,57 @@
           <form @submit.prevent="generateCard">
             <div class="form-group">
               <label>微博昵称</label>
-              <input 
-                type="text" 
-                v-model="formData.nickname" 
-                required
-              >
+              <input type="text" v-model="formData.nickname" required>
             </div>
-            
+
             <div class="form-group">
               <label>头像URL</label>
-              <input 
-                type="text" 
-                v-model="formData.avatar"
-              >
+              <input type="text" v-model="formData.avatar">
             </div>
 
             <div class="form-group">
               <label>发布时间</label>
-              <input 
-                type="datetime-local" 
-                v-model="formData.publishTime" 
-                required
-              >
+              <input type="datetime-local" v-model="formData.publishTime" required>
             </div>
 
             <div class="form-group">
               <label>来源</label>
-              <input 
-                type="text" 
-                v-model="formData.source" 
-                placeholder="来自 iPhone"
-              >
+              <input type="text" v-model="formData.source" placeholder="来自 iPhone">
             </div>
 
             <div class="form-group">
               <label>内容</label>
-              <textarea 
-                v-model="formData.content" 
-                required 
-                rows="5"
-              ></textarea>
+              <textarea v-model="formData.content" required rows="5"></textarea>
             </div>
 
             <div class="form-group">
               <label>模板选择</label>
               <select v-model="selectedTemplate">
-                <option 
-                  v-for="template in templates" 
-                  :key="template.id" 
-                  :value="template.id"
-                >
+                <option v-for="template in templates" :key="template.id" :value="template.id">
                   {{ template.name }}
                 </option>
               </select>
             </div>
-
             <div class="form-actions">
-              <button type="submit">生成卡片</button>
-              <button 
-                type="button" 
-                @click="downloadImage" 
-                :disabled="!cardGenerated"
-              >
-                下载图片
-              </button>
-              <button 
-                type="button" 
-                @click="clearForm"
-                class="clear-btn"
-              >
-                清空表单
+              <button @click="downloadImage" :disabled="isLoading" class="download-button">
+                {{ isLoading ? '生成中...' : '下载图片' }}
+                <span class="icon" v-if="!isLoading">📥</span>
+                <span class="loading-spinner" v-else></span>
               </button>
             </div>
+
           </form>
         </section>
 
         <!-- 右侧预览 -->
-        <section class="preview-section">
-          <div class="preview-container">
-            <div class="card-preview" ref="previewRef">
-              <div 
-                class="weibo-card" 
-                :class="{ empty: !formData.nickname }"
-                :style="currentTemplateStyle"
-              >
+        <section class="preview-canvas">
+          <div class="floating-background" :style="containerStyle">
+            <div class="weibo-card-wrapper" ref="previewRef">
+              <div class="weibo-card" :class="{ empty: !formData.nickname }" :style="cardStyle">
                 <template v-if="formData.nickname">
                   <div class="card-header">
                     <div class="avatar">
-                      <img 
-                        :src="formData.avatar || defaultAvatar" 
-                        alt="avatar"
-                        @error="handleImageError"
-                      >
+                      <img :src="formData.avatar || defaultAvatar" alt="avatar" @error="handleImageError">
                     </div>
                     <div class="user-info">
                       <div class="nickname">{{ formData.nickname }}</div>
@@ -113,13 +72,14 @@
                       </div>
                     </div>
                   </div>
-                  <div class="card-content">
-                    {{ formData.content }}
-                  </div>
+                  <div class="card-content" v-html="parseContent(formData.content)"></div>
                 </template>
                 <div v-else class="empty-placeholder">
                   <div class="placeholder-text">在左侧填写表单预览微博卡片</div>
                 </div>
+              </div>
+              <div class="powered-by">
+                <span>Powered by W2W</span>
               </div>
             </div>
           </div>
@@ -131,33 +91,109 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import html2canvas from 'html2canvas'
 import { saveAs } from 'file-saver'
 import { useStorage } from '@vueuse/core'
 import type { WeiboData, CardTemplate } from './types'
+import * as htmlToImage from 'html-to-image'
+
+
 
 const previewRef = ref<HTMLElement | null>(null)
 const cardGenerated = ref(false)
 const selectedTemplate = ref<string>(useStorage('selected-template', 'default'))
 const defaultAvatar = '/default-avatar.png'
+const isLoading = ref(false)
 
 const templates: CardTemplate[] = [
   {
     id: 'default',
     name: '默认模板',
-    description: '微博默认风格',
+    description: '简洁清晰的白色卡片设计',
     style: {
-      backgroundColor: '#ffffff',
-      color: '#333333',
+      container: {
+        padding: '40px',
+        backgroundColor: '#f5f5f5',
+        backgroundImage: undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        borderRadius: '12px',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
+      },
+      card: {
+        backgroundColor: '#ffffff',
+        color: '#333333',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '16px',
+        padding: '20px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)'
+      }
+    }
+  },
+  {
+    id: 'lxgw-elegant',
+    name: 'LXGW 雅墨',
+    description: '优雅简约的东方文韵设计',
+    style: {
+      container: {
+        padding: '40px',
+        backgroundColor: '#2c2c2c',
+        backgroundImage: `linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%),
+          repeating-linear-gradient(45deg, 
+            rgba(255,255,255,0.08) 0px, 
+            rgba(255,255,255,0.08) 3px,
+            transparent 3px, 
+            transparent 25px
+          ),
+          repeating-linear-gradient(135deg,
+            rgba(255,255,255,0.06) 0px,
+            rgba(255,255,255,0.06) 3px,
+            transparent 3px,
+            transparent 25px
+          ),
+          radial-gradient(circle at 50% 50%,
+            rgba(255,255,255,0.04) 0%,
+            transparent 60%
+          )`,
+        backgroundSize: 'cover, 150px 150px, 130px 130px, cover',
+        backgroundPosition: 'center',
+        borderRadius: '16px',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)'
+      },
+      card: {
+        backgroundColor: '#ffffff',
+        color: '#2c2c2c',
+        fontFamily: '"LXGW WenKai", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontSize: '18px',
+        padding: '28px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+      }
     }
   },
   {
     id: 'dark',
-    name: '暗色模板',
-    description: '深色主题',
+    name: '深色模板',
+    description: '高对比度的深色主题设计',
     style: {
-      backgroundColor: '#242424',
-      color: '#ffffff',
+      container: {
+        padding: '40px',
+        backgroundColor: '#1a1a1a',
+        backgroundImage: undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        borderRadius: '12px',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+      },
+      card: {
+        backgroundColor: '#2d2d2d',
+        color: '#ffffff',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: '16px',
+        padding: '20px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)'
+      }
     }
   }
 ]
@@ -171,9 +207,48 @@ const formData = useStorage<WeiboData>('weibo-form-data', {
   content: ''
 })
 
-const currentTemplateStyle = computed(() => {
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+const parseContent = (content: string): string => {
+  const escapedContent = escapeHtml(content);
+  return escapedContent.replace(
+    /#([^#]+)#/g,
+    '<span class="weibo-tag">#$1#</span>'
+  );
+}
+
+const containerStyle = computed(() => {
   const template = templates.find(t => t.id === selectedTemplate.value)
-  return template?.style || {}
+  return {
+    '--container-padding': template?.style.container.padding || '40px',
+    '--container-background': template?.style.container.backgroundColor || '#f5f5f5',
+    '--container-bg-image': template?.style.container.backgroundImage ?
+      `url(${template.style.container.backgroundImage})` : 'none',
+    '--container-bg-size': template?.style.container.backgroundSize || 'cover',
+    '--container-bg-position': template?.style.container.backgroundPosition || 'center',
+    '--container-border-radius': template?.style.container.borderRadius || '12px',
+    '--container-box-shadow': template?.style.container.boxShadow || '0 4px 16px rgba(0, 0, 0, 0.08)',
+  }
+})
+
+const cardStyle = computed(() => {
+  const template = templates.find(t => t.id === selectedTemplate.value)
+  return {
+    '--card-bg-color': template?.style.card.backgroundColor || '#ffffff',
+    '--card-text-color': template?.style.card.color || '#333333',
+    '--card-font-family': template?.style.card.fontFamily || 'system-ui',
+    '--card-font-size': template?.style.card.fontSize || '16px',
+    '--card-padding': template?.style.card.padding || '20px',
+    '--card-border-radius': template?.style.card.borderRadius || '8px',
+    '--card-box-shadow': template?.style.card.boxShadow || '0 2px 12px rgba(0, 0, 0, 0.08)'
+  }
 })
 
 const formatDateTime = (datetime: string): string => {
@@ -187,8 +262,14 @@ const formatDateTime = (datetime: string): string => {
   })
 }
 
-const generateCard = (): void => {
-  cardGenerated.value = true
+const generateCard = async (): Promise<void> => {
+  isLoading.value = true
+  try {
+    await new Promise(resolve => setTimeout(resolve, 500)) // 模拟加载过程
+    cardGenerated.value = true
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const handleImageError = (event: Event): void => {
@@ -208,46 +289,56 @@ const clearForm = (): void => {
 }
 
 const downloadImage = async (): Promise<void> => {
-  if (!previewRef.value) return
-  
+  const previewCanvas = document.querySelector('.floating-background')
+  if (!previewCanvas) return
+
   try {
-    // 优化 html2canvas 配置
-    const canvas = await html2canvas(previewRef.value, {
-      scale: 2, // 提高清晰度
-      useCORS: true, // 允许跨域图片
-      backgroundColor: null, // 保持背景透明
-      logging: false,
-      width: 600, // 固定宽度
-      height: previewRef.value.offsetHeight,
-      onclone: (clonedDoc) => {
-        // 确保克隆的元素样式完全加载
-        const clonedElement = clonedDoc.querySelector('.card-preview')
-        if (clonedElement) {
-          clonedElement.style.transform = 'none'
-          clonedElement.style.width = '600px'
-        }
+    isLoading.value = true
+
+    // 使用 htmlToImage 捕获整个 preview-canvas 区域
+    const dataUrl = await htmlToImage.toPng(previewCanvas as HTMLElement, {
+      quality: 1.0,
+      pixelRatio: 2,
+      style: {
+        // 确保捕获时保持原始样式
+        transform: 'none',
+        position: 'relative',
+        top: '0',
       }
     })
 
-    canvas.toBlob((blob) => {
-      if (blob) {
-        saveAs(blob, `weibo-card-${Date.now()}.png`)
-      }
-    }, 'image/png', 1.0) // 使用最高质量
+    // 生成带时间戳的文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `weibo-card-${timestamp}.png`
+
+    // 使用 FileSaver 下载
+    saveAs(dataUrl, filename)
+
   } catch (error) {
     console.error('Failed to generate image:', error)
+  } finally {
+    isLoading.value = false
   }
 }
 </script>
 
+
 <style>
 @import 'normalize.css';
+@import url('https://chinese-fonts-cdn.deno.dev/packages/lxgwwenkai/dist/lxgwwenkai-light/result.css');
+@import url('https://chinese-fonts-cdn.deno.dev/packages/yozai/dist/Yozai-Light/result.css');
+
 
 :root {
   --primary-color: #ff8200;
   --text-color: #333;
   --border-color: #e1e1e1;
   --card-width: 600px;
+  --container-background: #f5f5f5;
+  --card-bg-color: #ffffff;
+  --card-text-color: #333333;
+  --card-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --card-font-size: 16px;
 }
 
 body {
@@ -263,19 +354,19 @@ body {
   padding: 20px;
 }
 
-header {
+.app-header {
   text-align: center;
   margin-bottom: 40px;
 }
 
-header h1 {
+.app-header h1 {
   color: var(--primary-color);
-  margin-bottom: 0;
+  margin-bottom: 8px;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 2fr 3fr; /* 修改为 2:3 比例 */
+  grid-template-columns: 2fr 3fr;
   gap: 40px;
   align-items: start;
 }
@@ -294,12 +385,19 @@ header h1 {
 label {
   display: block;
   margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: bold; /* 加粗字体 */
+  color: var(--primary-color); /* 使用变量定义的主色 */
+  text-align: left; /* 左对齐 */
+  padding-left: 13px; /* 增加内边距，微调向右 */
+  /* 或者用 margin-left 调整：
+  margin-left: 8px;
+  */
 }
 
-/* 修改表单输入框宽度 */
-input, textarea, select {
-  width: 90%; /* 不占满宽度 */
+input,
+textarea,
+select {
+  width: 90%;
   padding: 8px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -312,55 +410,79 @@ textarea {
 
 .form-actions {
   display: flex;
-  gap: 10px;
+  justify-content: center;
+  width: 100%;
   margin-top: 20px;
-  width: 90%; /* 按钮组也保持一致的宽度 */
 }
 
-/* 按钮相关样式保持不变 */
+.download-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-.preview-section {
+.preview-canvas {
   position: sticky;
   top: 20px;
-  min-height: 600px; /* 添加最小高度 */
   display: flex;
-  justify-content: center; /* 居中显示 */
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 0;
 }
 
-.preview-container {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  width: fit-content; /* 宽度自适应内容 */
-}
-
-.card-preview {
+.floating-background {
   width: var(--card-width);
+  min-height: fit-content;
+  background-color: var(--container-background);
+  background-image: var(--container-bg-image);
+  background-size: var(--container-bg-size);
+  background-position: var(--container-bg-position);
+  border-radius: var(--container-border-radius);
+  box-shadow: var(--container-box-shadow);
+  padding: var(--container-padding);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.weibo-card-wrapper {
+  width: 100%;
 }
 
 .weibo-card {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  min-height: 200px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); /* 添加基础阴影 */
-  transition: box-shadow 0.3s ease; /* 添加过渡效果 */
+  background-color: var(--card-bg-color);
+  color: var(--card-text-color);
+  font-family: var(--card-font-family);
+  font-size: var(--card-font-size);
+  padding: var(--card-padding);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--card-box-shadow);
+  width: 100%;
+  height: fit-content;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
-/* 空状态的卡片样式 */
 .weibo-card.empty {
+  min-height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #fafafa;
   border: 2px dashed #ddd;
-  box-shadow: none; /* 空状态不需要阴影 */
+  box-shadow: none;
 }
 
-/* 当有内容时添加悬浮效果 */
 .weibo-card:not(.empty):hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12); /* 悬浮时加深阴影 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
 
 .card-header {
@@ -372,66 +494,155 @@ textarea {
 .avatar {
   width: 50px;
   height: 50px;
-  margin-right: 0px; /* 减小头像和昵称之间的间距 */
+  margin-right: 8px;
   flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
-/* 头像样式保持不变 */
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
 
 .user-info .nickname {
   font-weight: 600;
   font-size: 16px;
-  line-height: 1.2; /* 添加行高控制 */
+  line-height: 1.2;
   text-align: left;
 }
 
 .user-info .meta {
   font-size: 14px;
   color: #666;
-  line-height: 1.2; /* 添加行高控制 */
+  line-height: 1.2;
 }
 
 .card-content {
-  font-size: 16px;
+  width: 95%;
+  margin: 0 auto;
+  font-size: var(--card-font-size);
   line-height: 1.6;
   white-space: pre-wrap;
-  text-align: left; /* 修正文本对齐方式 */
+  text-align: left;
 }
 
-/* 修改响应式布局 */
+.card-content .weibo-tag {
+  background-color: #fef0e7;
+  /* 浅橙色背景 */
+  color: #f86b1d;
+  /* 深橙色文字 */
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin: 0 2px;
+  transition: all 0.2s ease;
+}
+
+.card-content .weibo-tag:hover {
+  background-color: #fde2d3;
+  /* 悬停时背景色稍微加深 */
+  color: #e85d0f;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.primary-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.secondary-button {
+  background-color: #f0f0f0;
+  color: var(--text-color);
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
 @media (max-width: 1200px) {
   .layout {
     grid-template-columns: 1fr;
   }
-  
-  .preview-section {
+
+  .preview-canvas {
     position: static;
-    min-height: auto; /* 在移动端取消最小高度 */
+    padding: 20px 0;
   }
-  
-  .preview-container {
-    width: 100%;
-    overflow-x: auto;
-  }
-  
-  .card-preview {
+
+  .floating-background {
+    width: var(--card-width);
+    max-width: 100%;
     margin: 0 auto;
   }
-}
-.avatar {
-  width: 50px;
-  height: 50px;
-  margin-right: 8px; /* 减小头像和昵称之间的间距 */
-  flex-shrink: 0;
-  border-radius: 50%; /* 添加圆形样式 */
-  overflow: hidden; /* 确保内部图片不超出圆形边界 */
+
+  .weibo-card-wrapper {
+    width: 100%;
+    max-width: var(--card-width);
+  }
 }
 
-.avatar img {
+.powered-by {
   width: 100%;
-  height: 100%;
-  border-radius: 50%; /* 图片也保持圆形 */
-  object-fit: cover; /* 保持图片比例并填充整个区域 */
-  display: block; /* 消除图片底部可能的间隙 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 24px;
+  margin-bottom: -10px;
+}
+
+.powered-by span {
+  max-width: 30em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background-color: #606060;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-weight: 500;
+  color: rgb(255, 255, 255);
+  font-size: 13px;
+}
+
+
+
+.download-button:disabled {
+  background: #91caff;
+  cursor: not-allowed;
+}
+
+.download-button .icon {
+  font-size: 16px;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>
