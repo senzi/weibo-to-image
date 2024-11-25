@@ -100,7 +100,7 @@ import * as htmlToImage from 'html-to-image'
 
 const previewRef = ref<HTMLElement | null>(null)
 const cardGenerated = ref(false)
-const selectedTemplate = ref<string>(useStorage('selected-template', 'default'))
+const selectedTemplate = useStorage<string>('selected-template', 'default')
 const defaultAvatar = '/default-avatar.png'
 const isLoading = ref(false)
 
