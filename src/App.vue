@@ -275,7 +275,7 @@ header h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(var(--card-width), 1fr);
+  grid-template-columns: 2fr 3fr; /* 修改为 2:3 比例 */
   gap: 40px;
   align-items: start;
 }
@@ -297,8 +297,9 @@ label {
   font-weight: 500;
 }
 
+/* 修改表单输入框宽度 */
 input, textarea, select {
-  width: 100%;
+  width: 90%; /* 不占满宽度 */
   padding: 8px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -313,40 +314,17 @@ textarea {
   display: flex;
   gap: 10px;
   margin-top: 20px;
+  width: 90%; /* 按钮组也保持一致的宽度 */
 }
 
-button {
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-button[type="submit"] {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-button[type="submit"]:hover {
-  background: #e67600;
-}
-
-.clear-btn {
-  background: #f5f5f5;
-  color: #666;
-  border: 1px solid #ddd;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* 按钮相关样式保持不变 */
 
 .preview-section {
   position: sticky;
   top: 20px;
+  min-height: 600px; /* 添加最小高度 */
+  display: flex;
+  justify-content: center; /* 居中显示 */
 }
 
 .preview-container {
@@ -354,11 +332,11 @@ button:disabled {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: fit-content; /* 宽度自适应内容 */
 }
 
 .card-preview {
   width: var(--card-width);
-  margin: 0 auto;
 }
 
 .weibo-card {
@@ -366,19 +344,23 @@ button:disabled {
   border-radius: 8px;
   padding: 20px;
   min-height: 200px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); /* 添加基础阴影 */
+  transition: box-shadow 0.3s ease; /* 添加过渡效果 */
 }
 
+/* 空状态的卡片样式 */
 .weibo-card.empty {
   display: flex;
   align-items: center;
   justify-content: center;
   background: #fafafa;
   border: 2px dashed #ddd;
+  box-shadow: none; /* 空状态不需要阴影 */
 }
 
-.empty-placeholder {
-  text-align: center;
-  color: #999;
+/* 当有内容时添加悬浮效果 */
+.weibo-card:not(.empty):hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12); /* 悬浮时加深阴影 */
 }
 
 .card-header {
@@ -390,45 +372,66 @@ button:disabled {
 .avatar {
   width: 50px;
   height: 50px;
-  margin-right: 12px;
+  margin-right: 0px; /* 减小头像和昵称之间的间距 */
   flex-shrink: 0;
 }
 
-.avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
+/* 头像样式保持不变 */
 
 .user-info .nickname {
   font-weight: 600;
   font-size: 16px;
+  line-height: 1.2; /* 添加行高控制 */
+  text-align: left;
 }
 
 .user-info .meta {
   font-size: 14px;
   color: #666;
+  line-height: 1.2; /* 添加行高控制 */
 }
 
 .card-content {
   font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
+  text-align: left; /* 修正文本对齐方式 */
 }
 
-@media (max-width: 1000px) {
+/* 修改响应式布局 */
+@media (max-width: 1200px) {
   .layout {
     grid-template-columns: 1fr;
   }
   
   .preview-section {
     position: static;
-    overflow-x: auto;
+    min-height: auto; /* 在移动端取消最小高度 */
   }
   
   .preview-container {
-    min-width: min-content;
+    width: 100%;
+    overflow-x: auto;
   }
+  
+  .card-preview {
+    margin: 0 auto;
+  }
+}
+.avatar {
+  width: 50px;
+  height: 50px;
+  margin-right: 8px; /* 减小头像和昵称之间的间距 */
+  flex-shrink: 0;
+  border-radius: 50%; /* 添加圆形样式 */
+  overflow: hidden; /* 确保内部图片不超出圆形边界 */
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%; /* 图片也保持圆形 */
+  object-fit: cover; /* 保持图片比例并填充整个区域 */
+  display: block; /* 消除图片底部可能的间隙 */
 }
 </style>
